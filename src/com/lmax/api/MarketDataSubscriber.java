@@ -10,6 +10,7 @@ import com.lmax.api.orderbook.PricePoint;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+import redis.clients.jedis.Jedis;
 
 public class MarketDataSubscriber implements LoginCallback, OrderBookEventListener
 {
@@ -17,6 +18,7 @@ public class MarketDataSubscriber implements LoginCallback, OrderBookEventListen
 //    private static final long INSTRUMENT_ID_2 = 100613;
     
     private static String instrumentIDs[];
+    private static Jedis jedis;
 
     @Override
     public void onLoginSuccess(final Session session)
@@ -64,8 +66,16 @@ public class MarketDataSubscriber implements LoginCallback, OrderBookEventListen
     public void notify(final OrderBookEvent orderBookEvent)
     {
 //        System.out.println(orderBookEvent);
-    	System.out.println(getRoundTripTime(orderBookEvent.getTimeStamp()) + "," + orderBookEvent.getInstrumentId() + "," 
-    			+ orderBookEvent.getValuationBidPrice() + "," + orderBookEvent.getValuationAskPrice());
+        String val = getRoundTripTime(orderBookEvent.getTimeStamp()) + "," + orderBookEvent.getInstrumentId() + "," 
+    			+ orderBookEvent.getValuationBidPrice() + "," + orderBookEvent.getValuationAskPrice();
+    	System.out.println(val);
+        //jedis.set("lmax_quote", val);
+        try {
+            jedis.publish("lmax_quote", val);
+        } catch (Exception e) {
+            System.err.printf("Failed to redis publish to instrument %d: %s%n", orderBookEvent.getInstrumentId(), e.getMessage());
+        }
+        
     }
 
     private String getRoundTripTime(long time){
@@ -87,22 +97,29 @@ public class MarketDataSubscriber implements LoginCallback, OrderBookEventListen
     
     public static void main(String[] args)
     {
-        if (args.length != 5)
+        if (args.length != 7)
         {
-            System.out.println("Usage " + MarketDataSubscriber.class.getName() + " <url> <username> <password> [CFD_DEMO|CFD_LIVE] [instrumentIds...]");
+            System.out.println("Usage " + MarketDataSubscriber.class.getName() + " <url> <username> <password> [CFD_DEMO|CFD_LIVE] [instrumentIds...] <redishost> <redisport>");
             System.exit(-1);
         }
 
-        String url = args[0];
-        String username = args[1];
-        String password = args[2];
-        LoginRequest.ProductType productType = LoginRequest.ProductType.valueOf(args[3].toUpperCase());
+        try {
+            String url = args[0];
+            String username = args[1];
+            String password = args[2];
+            LoginRequest.ProductType productType = LoginRequest.ProductType.valueOf(args[3].toUpperCase());
+
+            instrumentIDs = args[4].split(",");
+
+            jedis = new Jedis(args[5], Integer.parseInt(args[6]));
+
+            LmaxApi lmaxApi = new LmaxApi(url);
+            MarketDataSubscriber marketDataRequester = new MarketDataSubscriber();
+
+            lmaxApi.login(new LoginRequest(username, password, productType), marketDataRequester);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         
-        instrumentIDs = args[4].split(",");
-
-        LmaxApi lmaxApi = new LmaxApi(url);
-        MarketDataSubscriber marketDataRequester = new MarketDataSubscriber();
-
-        lmaxApi.login(new LoginRequest(username, password, productType), marketDataRequester);
     }
 }
