@@ -1,0 +1,1 @@
+java -jar lmax_to_redis.jar https://testapi.lmaxtrader.com javkhaaj7 javkhaaj7 CFD_DEMO 4001,4009,4005,4007,4002 localhost 6379
