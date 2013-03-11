@@ -21,6 +21,7 @@ public class MarketDataSubscriber implements LoginCallback, HeartbeatEventListen
     private Session session;
     private static String instrumentIDs[];
     private static Jedis jedis;
+    private long counter = 0;
 
     @Override
     public void onLoginSuccess(final Session session) {
@@ -140,7 +141,7 @@ public class MarketDataSubscriber implements LoginCallback, HeartbeatEventListen
 
     private void requestHeartbeat()
     {
-        this.session.requestHeartbeat(new HeartbeatRequest("token"), new HeartbeatCallback()
+        this.session.requestHeartbeat(new HeartbeatRequest("heartbeat-" + counter++), new HeartbeatCallback()
         {
             @Override
             public void onSuccess(String token)
